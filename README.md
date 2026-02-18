@@ -27,31 +27,10 @@ cd Zadanie_Simplicity_Fullstack
 
 ### 2. Spustenie backendu
 
-```bash
-cd backend
-npm install
-```
-
-Vytvorte súbor `.env` podľa šablóny a doplňte prihlasovacie údaje k databáze:
+Vytvorte súbor `.env` v priecinku `backend` a doplňte prihlasovacie údaje k databáze, ktoré som Vám poslal (z dovodu bezpecnosti by mal byt .env mimo github-u, co urcite viete).
 
 ```bash
-cp .env.example .env
-```
-
-Obsah `.env`:
-
-```dotenv
-DATABASE_URL="postgresql://user:password@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require"
-DIRECT_URL="postgresql://user:password@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require"
-```
-
-Vygenerujte Prisma klienta, spustite migrácie a naplňte databázu:
-
-```bash
-npx prisma generate
-npx prisma migrate dev
-npx prisma db seed
-npm run start:dev
+cd backend && npm install && npx prisma generate && npx prisma migrate dev && npx prisma db seed && npm run start:dev
 ```
 
 Backend API bude dostupné na **http://localhost:3000**.
@@ -59,42 +38,11 @@ Backend API bude dostupné na **http://localhost:3000**.
 ### 3. Spustenie frontendu
 
 Otvorte **nový terminál** v koreňovom adresári projektu:
+Vytvorte súbor `.env` v priecinku `frontend` a doplňte prihlasovacie údaje k databáze, ktoré som Vám poslal (z dovodu bezpecnosti by mal byt .env mimo github-u, co urcite viete).
 
 ```bash
-cd frontend
-npm install
-```
-
-Vytvorte súbor `.env` (alebo skopírujte šablónu):
-
-```bash
-cp .env.example .env
-```
-
-Obsah `.env`:
-
-```dotenv
-VITE_API_URL=http://localhost:3000
-```
-
-Spustite dev server:
-
-```bash
-npm run dev
-```
-
-Aplikácia bude dostupná na **http://localhost:5173**.
-
-### Rýchly štart (TL;DR)
-
-```bash
-# Terminál 1 — Backend
-cd backend && npm install && npx prisma generate && npx prisma migrate dev && npx prisma db seed && npm run start:dev
-
-# Terminál 2 — Frontend
 cd frontend && npm install && npm run dev
 ```
-
 
 ## Tech Stack
 

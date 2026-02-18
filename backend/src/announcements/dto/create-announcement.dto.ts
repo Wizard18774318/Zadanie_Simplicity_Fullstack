@@ -4,12 +4,48 @@ import {
   IsArray,
   ArrayMinSize,
   IsInt,
-  Matches,
+  MaxLength,
+  Validate,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+  ValidationArguments,
 } from 'class-validator';
+
+const DATE_REGEX = /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
+
+@ValidatorConstraint({ name: 'isValidDateTime', async: false })
+export class IsValidDateTimeConstraint implements ValidatorConstraintInterface {
+  validate(value: string): boolean {
+    if (typeof value !== 'string' || !DATE_REGEX.test(value)) return false;
+
+    const [datePart, timePart] = value.split(' ');
+    const [month, day, year] = datePart.split('/').map(Number);
+    const [hours, minutes] = timePart.split(':').map(Number);
+
+    if (month < 1 || month > 12) return false;
+    if (day < 1 || day > 31) return false;
+    if (year < 1900 || year > 2100) return false;
+    if (hours < 0 || hours > 23) return false;
+    if (minutes < 0 || minutes > 59) return false;
+
+    // Verify the date actually exists (e.g. no Feb 30)
+    const constructed = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+    return (
+      constructed.getUTCFullYear() === year &&
+      constructed.getUTCMonth() === month - 1 &&
+      constructed.getUTCDate() === day
+    );
+  }
+
+  defaultMessage(_args: ValidationArguments): string {
+    return 'Publication date must be a valid date/time in format MM/DD/YYYY HH:mm (e.g. 01/15/2025 09:30)';
+  }
+}
 
 export class CreateAnnouncementDto {
   @IsString()
   @IsNotEmpty({ message: 'Title is required' })
+  @MaxLength(255, { message: 'Title must be at most 255 characters' })
   title: string;
 
   @IsString()
@@ -18,9 +54,7 @@ export class CreateAnnouncementDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Publication date is required' })
-  @Matches(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/, {
-    message: 'Publication date must be in format MM/DD/YYYY HH:mm',
-  })
+  @Validate(IsValidDateTimeConstraint)
   publicationDate: string;
 
   @IsArray({ message: 'Category IDs must be an array' })

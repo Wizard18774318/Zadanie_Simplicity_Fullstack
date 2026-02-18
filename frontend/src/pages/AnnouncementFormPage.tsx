@@ -30,6 +30,38 @@ function isoToFormDate(iso: string): string {
 
 const DATE_REGEX = /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
 
+/**
+ * Validate that a MM/DD/YYYY HH:mm string represents a real date/time.
+ * Returns an error message or null if valid.
+ */
+function validateDateTime(value: string): string | null {
+  if (!DATE_REGEX.test(value)) {
+    return 'Invalid date format — use MM/DD/YYYY HH:mm (e.g. 01/15/2025 09:30).';
+  }
+
+  const [datePart, timePart] = value.split(' ');
+  const [mm, dd, yyyy] = datePart.split('/').map(Number);
+  const [hh, min] = timePart.split(':').map(Number);
+
+  if (mm < 1 || mm > 12) return 'Month must be between 01 and 12.';
+  if (dd < 1 || dd > 31) return 'Day must be between 01 and 31.';
+  if (yyyy < 1900 || yyyy > 2100) return 'Year must be between 1900 and 2100.';
+  if (hh < 0 || hh > 23) return 'Hours must be between 00 and 23.';
+  if (min < 0 || min > 59) return 'Minutes must be between 00 and 59.';
+
+  // Check the date actually exists (e.g. no Feb 30)
+  const constructed = new Date(Date.UTC(yyyy, mm - 1, dd, hh, min));
+  if (
+    constructed.getUTCFullYear() !== yyyy ||
+    constructed.getUTCMonth() !== mm - 1 ||
+    constructed.getUTCDate() !== dd
+  ) {
+    return 'This date does not exist (e.g. February 30).';
+  }
+
+  return null;
+}
+
 export default function AnnouncementFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -74,13 +106,23 @@ export default function AnnouncementFormPage() {
   function validate(): boolean {
     const errors: Record<string, string> = {};
 
-    if (!title.trim()) errors.title = 'Please enter a title for the announcement.';
-    if (!content.trim()) errors.content = 'Please enter the announcement content.';
+    if (!title.trim()) {
+      errors.title = 'Please enter a title for the announcement.';
+    } else if (title.trim().length > 255) {
+      errors.title = 'Title must be at most 255 characters.';
+    }
+
+    if (!content.trim()) {
+      errors.content = 'Please enter the announcement content.';
+    }
+
     if (!publicationDate.trim()) {
       errors.publicationDate = 'Please specify a publication date.';
-    } else if (!DATE_REGEX.test(publicationDate)) {
-      errors.publicationDate = 'Invalid date format — use MM/DD/YYYY HH:mm (e.g. 01/15/2025 09:30).';
+    } else {
+      const dateError = validateDateTime(publicationDate);
+      if (dateError) errors.publicationDate = dateError;
     }
+
     if (selectedCategories.length === 0) {
       errors.categories = 'Please select at least one category.';
     }
