@@ -16,7 +16,7 @@
 - **Node.js** ≥ 18
 - **npm** ≥ 9
 
-> **Poznámka:** Projekt používa cloud PostgreSQL databázu na [Neon](https://neon.tech). Súbory `.env` nie sú súčasťou repozitára.
+> **Poznámka:** Projekt používa cloud PostgreSQL databázu na [Neon](https://neon.tech). Súbory `.env` nie sú súčasťou repozitára — je potrebné ich vytvoriť podľa `.env.example`.
 
 ### 1. Klonovanie repozitára
 
@@ -30,6 +30,25 @@ cd Zadanie_Simplicity_Fullstack
 ```bash
 cd backend
 npm install
+```
+
+Vytvorte súbor `.env` podľa šablóny a doplňte prihlasovacie údaje k databáze:
+
+```bash
+cp .env.example .env
+```
+
+Obsah `.env`:
+
+```dotenv
+DATABASE_URL="postgresql://user:password@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require"
+DIRECT_URL="postgresql://user:password@ep-xxxx.region.aws.neon.tech/dbname?sslmode=require"
+```
+
+Vygenerujte Prisma klienta, spustite migrácie a naplňte databázu:
+
+```bash
+npx prisma generate
 npx prisma migrate dev
 npx prisma db seed
 npm run start:dev
@@ -44,6 +63,23 @@ Otvorte **nový terminál** v koreňovom adresári projektu:
 ```bash
 cd frontend
 npm install
+```
+
+Vytvorte súbor `.env` (alebo skopírujte šablónu):
+
+```bash
+cp .env.example .env
+```
+
+Obsah `.env`:
+
+```dotenv
+VITE_API_URL=http://localhost:3000
+```
+
+Spustite dev server:
+
+```bash
 npm run dev
 ```
 
@@ -53,10 +89,10 @@ Aplikácia bude dostupná na **http://localhost:5173**.
 
 ```bash
 # Terminál 1 — Backend
-cd backend && npm install && npx prisma migrate dev && npx prisma db seed && npm run start:dev
+cd backend && npm install && cp .env.example .env && npx prisma generate && npx prisma migrate dev && npx prisma db seed && npm run start:dev
 
 # Terminál 2 — Frontend
-cd frontend && npm install && npm run dev
+cd frontend && npm install && cp .env.example .env && npm run dev
 ```
 
 
