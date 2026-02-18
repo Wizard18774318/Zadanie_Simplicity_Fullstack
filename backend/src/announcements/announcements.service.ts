@@ -1,20 +1,49 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto.js';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto.js';
+import {
+  AnnouncementResponseDto,
+  toAnnouncementResponse,
+} from './dto/announcement-response.dto.js';
 
 @Injectable()
 export class AnnouncementsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Parse date string in MM/DD/YYYY HH:mm format to a Date object
+   * Parse date string in MM/DD/YYYY HH:mm format to a UTC Date object.
    */
   private parsePublicationDate(dateStr: string): Date {
     const [datePart, timePart] = dateStr.split(' ');
     const [month, day, year] = datePart.split('/').map(Number);
     const [hours, minutes] = timePart.split(':').map(Number);
-    return new Date(year, month - 1, day, hours, minutes);
+    return new Date(Date.UTC(year, month - 1, day, hours, minutes));
+  }
+
+  /**
+   * Validate that all provided category IDs exist in the database.
+   * Throws BadRequestException if any are missing.
+   */
+  private async validateCategoryIds(categoryIds: number[]): Promise<void> {
+    const existing = await this.prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true },
+    });
+
+    const existingIds = new Set(existing.map((c) => c.id));
+    const invalid = categoryIds.filter((id) => !existingIds.has(id));
+
+    if (invalid.length > 0) {
+      throw new BadRequestException(
+        `Category IDs do not exist: ${invalid.join(', ')}`,
+      );
+    }
   }
 
   /**
@@ -31,13 +60,16 @@ export class AnnouncementsService {
   }
 
   /**
-   * List all announcements with optional filtering
+   * List all announcements with optional filtering.
    * - search: text search on title and content (case-insensitive)
-   * - category: filter by category ID
+   * - categoryId: filter by category ID
    * Default sort: updatedAt descending
    */
-  async findAll(search?: string, categoryId?: number) {
-    const where: any = {};
+  async findAll(
+    search?: string,
+    categoryId?: number,
+  ): Promise<AnnouncementResponseDto[]> {
+    const where: Prisma.AnnouncementWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -52,17 +84,19 @@ export class AnnouncementsService {
       };
     }
 
-    return this.prisma.announcement.findMany({
+    const announcements = await this.prisma.announcement.findMany({
       where,
       include: this.includeCategories,
       orderBy: { updatedAt: 'desc' },
     });
+
+    return announcements.map(toAnnouncementResponse);
   }
 
   /**
-   * Get a single announcement by ID
+   * Get a single announcement by ID.
    */
-  async findOne(id: number) {
+  async findOne(id: number): Promise<AnnouncementResponseDto> {
     const announcement = await this.prisma.announcement.findUnique({
       where: { id },
       include: this.includeCategories,
@@ -72,16 +106,18 @@ export class AnnouncementsService {
       throw new NotFoundException(`Announcement with ID ${id} not found`);
     }
 
-    return announcement;
+    return toAnnouncementResponse(announcement);
   }
 
   /**
-   * Create a new announcement
+   * Create a new announcement.
    */
-  async create(dto: CreateAnnouncementDto) {
+  async create(dto: CreateAnnouncementDto): Promise<AnnouncementResponseDto> {
+    await this.validateCategoryIds(dto.categoryIds);
+
     const publicationDate = this.parsePublicationDate(dto.publicationDate);
 
-    return this.prisma.announcement.create({
+    const announcement = await this.prisma.announcement.create({
       data: {
         title: dto.title,
         content: dto.content,
@@ -92,16 +128,24 @@ export class AnnouncementsService {
       },
       include: this.includeCategories,
     });
+
+    return toAnnouncementResponse(announcement);
   }
 
   /**
-   * Update an existing announcement
+   * Update an existing announcement.
    */
-  async update(id: number, dto: UpdateAnnouncementDto) {
-    // Verify announcement exists
+  async update(
+    id: number,
+    dto: UpdateAnnouncementDto,
+  ): Promise<AnnouncementResponseDto> {
     await this.findOne(id);
 
-    const data: any = {};
+    if (dto.categoryIds !== undefined) {
+      await this.validateCategoryIds(dto.categoryIds);
+    }
+
+    const data: Prisma.AnnouncementUpdateInput = {};
 
     if (dto.title !== undefined) {
       data.title = dto.title;
@@ -127,22 +171,26 @@ export class AnnouncementsService {
       };
     }
 
-    return this.prisma.announcement.update({
+    const announcement = await this.prisma.announcement.update({
       where: { id },
       data,
       include: this.includeCategories,
     });
+
+    return toAnnouncementResponse(announcement);
   }
 
   /**
-   * Delete an announcement
+   * Delete an announcement.
    */
-  async remove(id: number) {
+  async remove(id: number): Promise<AnnouncementResponseDto> {
     await this.findOne(id);
 
-    return this.prisma.announcement.delete({
+    const announcement = await this.prisma.announcement.delete({
       where: { id },
       include: this.includeCategories,
     });
+
+    return toAnnouncementResponse(announcement);
   }
 }

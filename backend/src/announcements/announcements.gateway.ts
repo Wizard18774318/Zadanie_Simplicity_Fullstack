@@ -4,6 +4,7 @@ import {
   OnGatewayInit,
 } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import { AnnouncementResponseDto } from './dto/announcement-response.dto.js';
 
 @WebSocketGateway({
   cors: {
@@ -18,10 +19,7 @@ export class AnnouncementsGateway implements OnGatewayInit {
     console.log('WebSocket gateway initialized');
   }
 
-  /**
-   * Notify all connected clients about a new announcement
-   */
-  notifyNewAnnouncement(announcement: any) {
+  notifyNewAnnouncement(announcement: AnnouncementResponseDto) {
     this.server.emit('announcement:created', announcement);
   }
 }

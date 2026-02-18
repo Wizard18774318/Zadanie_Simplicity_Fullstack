@@ -12,7 +12,8 @@ import {
 import { AnnouncementsService } from './announcements.service.js';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto.js';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto.js';
-import { AnnouncementsGateway } from '../gateway/announcements.gateway.js';
+import { FindAnnouncementsQueryDto } from './dto/find-announcements-query.dto.js';
+import { AnnouncementsGateway } from './announcements.gateway.js';
 
 @Controller('announcements')
 export class AnnouncementsController {
@@ -22,12 +23,8 @@ export class AnnouncementsController {
   ) {}
 
   @Get()
-  findAll(
-    @Query('search') search?: string,
-    @Query('category') category?: string,
-  ) {
-    const categoryId = category ? parseInt(category, 10) : undefined;
-    return this.announcementsService.findAll(search, categoryId);
+  findAll(@Query() query: FindAnnouncementsQueryDto) {
+    return this.announcementsService.findAll(query.search, query.category);
   }
 
   @Get(':id')
