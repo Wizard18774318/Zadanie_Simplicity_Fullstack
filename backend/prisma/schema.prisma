@@ -1,0 +1,44 @@
+// Prisma schema for Announcements app
+// Neon PostgreSQL database
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Announcement {
+  id              Int       @id @default(autoincrement())
+  title           String    @db.VarChar(255)
+  content         String    @db.Text
+  publicationDate DateTime  @map("publication_date")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  categories AnnouncementCategory[]
+
+  @@map("announcements")
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique @db.VarChar(100)
+
+  announcements AnnouncementCategory[]
+
+  @@map("categories")
+}
+
+model AnnouncementCategory {
+  announcementId Int @map("announcement_id")
+  categoryId     Int @map("category_id")
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, categoryId])
+  @@map("announcement_categories")
+}
