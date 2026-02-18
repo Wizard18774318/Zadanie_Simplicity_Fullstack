@@ -56,6 +56,7 @@ export default function AnnouncementFormPage() {
   const [publicationDate, setPublicationDate] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<CategoryOption[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [validationAlert, setValidationAlert] = useState<string[]>([]);
   const [formInitialized, setFormInitialized] = useState(false);
 
   useEffect(() => {
@@ -73,19 +74,26 @@ export default function AnnouncementFormPage() {
   function validate(): boolean {
     const errors: Record<string, string> = {};
 
-    if (!title.trim()) errors.title = 'Title is required';
-    if (!content.trim()) errors.content = 'Content is required';
+    if (!title.trim()) errors.title = 'Please enter a title for the announcement.';
+    if (!content.trim()) errors.content = 'Please enter the announcement content.';
     if (!publicationDate.trim()) {
-      errors.publicationDate = 'Publication date is required';
+      errors.publicationDate = 'Please specify a publication date.';
     } else if (!DATE_REGEX.test(publicationDate)) {
-      errors.publicationDate = 'Must be in format MM/DD/YYYY HH:mm';
+      errors.publicationDate = 'Invalid date format — use MM/DD/YYYY HH:mm (e.g. 01/15/2025 09:30).';
     }
     if (selectedCategories.length === 0) {
-      errors.categories = 'At least one category is required';
+      errors.categories = 'Please select at least one category.';
     }
 
     setFieldErrors(errors);
-    return Object.keys(errors).length === 0;
+
+    if (Object.keys(errors).length > 0) {
+      setValidationAlert(Object.values(errors));
+      return false;
+    }
+
+    setValidationAlert([]);
+    return true;
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -181,6 +189,51 @@ export default function AnnouncementFormPage() {
       {errorMessage && (
         <div className="mb-6">
           <ErrorBanner message={errorMessage} />
+        </div>
+      )}
+
+      {/* Validation alert */}
+      {validationAlert.length > 0 && (
+        <div
+          className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 animate-in fade-in"
+          role="alert"
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <svg
+                className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                />
+              </svg>
+              <div>
+                <h3 className="text-sm font-semibold text-red-800">Some fields are empty or aren't a valid format:</h3>
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+                  {validationAlert.map((msg, i) => (
+                    <li key={i} className="text-sm text-red-700">{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setValidationAlert([])}
+              className="rounded p-1 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+              aria-label="Dismiss"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
@@ -315,6 +368,7 @@ export default function AnnouncementFormPage() {
             }`}
             placeholder="MM/DD/YYYY HH:mm"
           />
+          <p className="mt-1 text-xs text-gray-400">Formát: MM/DD/YYYY HH:mm (napr. 01/15/2025 09:30)</p>
           {fieldErrors.publicationDate && (
             <p className="mt-1 text-xs text-red-500">{fieldErrors.publicationDate}</p>
           )}
