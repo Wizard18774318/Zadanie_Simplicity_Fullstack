@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 import {
-  getAnnouncement,
-  getCategories,
-  createAnnouncement,
-  updateAnnouncement,
-} from '../api/announcements';
-import type { Category } from '../types';
+  useAnnouncement,
+  useCategories,
+  useCreateAnnouncement,
+  useUpdateAnnouncement,
+} from '../hooks/useAnnouncementQueries';
+import Spinner from '../components/Spinner';
+import ErrorBanner from '../components/ErrorBanner';
 
 interface CategoryOption {
   value: number;
@@ -33,47 +34,41 @@ export default function AnnouncementFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+  const numericId = id ? Number(id) : undefined;
+
+  const {
+    data: existingAnnouncement,
+    isLoading,
+    error: loadError,
+  } = useAnnouncement(numericId);
+
+  const { data: categoriesData = [] } = useCategories();
+  const categoryOptions: CategoryOption[] = categoriesData.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+
+  const createMutation = useCreateAnnouncement();
+  const updateMutation = useUpdateAnnouncement();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [publicationDate, setPublicationDate] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<CategoryOption[]>([]);
-
-  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-
-
-  useEffect(() => {
-    getCategories()
-      .then((cats: Category[]) =>
-        setCategoryOptions(cats.map((c) => ({ value: c.id, label: c.name }))),
-      )
-      .catch(() => {});
-  }, []);
-
+  const [formInitialized, setFormInitialized] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-
-    setLoading(true);
-    getAnnouncement(Number(id))
-      .then((a) => {
-        setTitle(a.title);
-        setContent(a.content);
-        setPublicationDate(isoToFormDate(a.publicationDate));
-        setSelectedCategories(
-          a.categories.map((c) => ({ value: c.id, label: c.name })),
-        );
-      })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : 'Failed to load announcement'),
-      )
-      .finally(() => setLoading(false));
-  }, [id]);
-
+    if (existingAnnouncement && !formInitialized) {
+      setTitle(existingAnnouncement.title);
+      setContent(existingAnnouncement.content);
+      setPublicationDate(isoToFormDate(existingAnnouncement.publicationDate));
+      setSelectedCategories(
+        existingAnnouncement.categories.map((c) => ({ value: c.id, label: c.name })),
+      );
+      setFormInitialized(true);
+    }
+  }, [existingAnnouncement, formInitialized]);
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
@@ -93,13 +88,9 @@ export default function AnnouncementFormPage() {
     return Object.keys(errors).length === 0;
   }
 
-
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-
-    setSubmitting(true);
-    setError(null);
 
     const payload = {
       title: title.trim(),
@@ -108,25 +99,62 @@ export default function AnnouncementFormPage() {
       categoryIds: selectedCategories.map((c) => c.value),
     };
 
-    try {
-      if (isEditing) {
-        await updateAnnouncement(Number(id), payload);
-      } else {
-        await createAnnouncement(payload);
-      }
-      navigate('/announcements');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save announcement');
-    } finally {
-      setSubmitting(false);
+    if (isEditing && numericId) {
+      updateMutation.mutate(
+        { id: numericId, data: payload },
+        { onSuccess: () => navigate('/announcements') },
+      );
+    } else {
+      createMutation.mutate(payload, {
+        onSuccess: () => navigate('/announcements'),
+      });
     }
   }
 
+  const submitting = createMutation.isPending || updateMutation.isPending;
+  const mutationError = createMutation.error ?? updateMutation.error;
+  const errorMessage = mutationError instanceof Error ? mutationError.message : null;
 
-  if (loading) {
+  if (isEditing && isLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-500">
-        Loading...
+      <div className="flex items-center justify-center py-20">
+        <Spinner label="Loading announcement…" />
+      </div>
+    );
+  }
+
+  if (isEditing && loadError) {
+    const loadErrorMsg =
+      loadError instanceof Error ? loadError.message : 'Failed to load announcement';
+
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8 flex items-center gap-4">
+          <button
+            onClick={() => navigate('/announcements')}
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
+            aria-label="Back to announcements"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+          </button>
+          <h2 className="text-2xl font-bold text-gray-900">Announcement Not Found</h2>
+        </div>
+
+        <ErrorBanner message={loadErrorMsg} />
+
+        <div className="mt-8 text-center">
+          <p className="mb-4 text-sm text-gray-500">
+            This announcement may have been deleted or the ID is invalid.
+          </p>
+          <button
+            onClick={() => navigate('/announcements')}
+            className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors"
+          >
+            Back to Announcements
+          </button>
+        </div>
       </div>
     );
   }
@@ -138,9 +166,9 @@ export default function AnnouncementFormPage() {
         <button
           onClick={() => navigate('/announcements')}
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
-          title="Back"
+          aria-label="Back to announcements"
         >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
         </button>
@@ -149,10 +177,10 @@ export default function AnnouncementFormPage() {
         </h2>
       </div>
 
-      {/* Error banner */}
-      {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+      {/* Mutation error banner */}
+      {errorMessage && (
+        <div className="mb-6">
+          <ErrorBanner message={errorMessage} />
         </div>
       )}
 
