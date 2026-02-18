@@ -11,6 +11,8 @@ import {
   getCategories,
   deleteAnnouncement,
 } from '../api/announcements';
+import { useAnnouncementSocket } from '../hooks/useAnnouncementSocket';
+import Toast from '../components/Toast';
 import type { Announcement, Category } from '../types';
 
 function formatPublicationDate(iso: string): string {
@@ -78,6 +80,20 @@ export default function AnnouncementsListPage() {
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {});
   }, []);
+
+  // ── WebSocket: real-time notifications ────────────────────
+
+  const [toast, setToast] = useState<string | null>(null);
+
+  useAnnouncementSocket(
+    useCallback(
+      (announcement) => {
+        setToast(`New announcement: "${announcement.title}"`);
+        fetchAnnouncements();
+      },
+      [fetchAnnouncements],
+    ),
+  );
 
 
   const handleDelete = async (id: number, title: string) => {
@@ -262,6 +278,9 @@ export default function AnnouncementsListPage() {
           {announcements.length} announcement{announcements.length !== 1 ? 's' : ''}
         </p>
       )}
+
+      {/* Toast notification */}
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   );
 }
