@@ -89,10 +89,10 @@ Aplikácia bude dostupná na **http://localhost:5173**.
 
 ```bash
 # Terminál 1 — Backend
-cd backend && npm install && cp .env.example .env && npx prisma generate && npx prisma migrate dev && npx prisma db seed && npm run start:dev
+cd backend && npm install && npx prisma generate && npx prisma migrate dev && npx prisma db seed && npm run start:dev
 
 # Terminál 2 — Frontend
-cd frontend && npm install && cp .env.example .env && npm run dev
+cd frontend && npm install && npm run dev
 ```
 
 
