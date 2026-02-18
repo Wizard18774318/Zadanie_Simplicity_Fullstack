@@ -9,8 +9,11 @@ type AnnouncementCreatedHandler = (announcement: Announcement) => void;
 export function useAnnouncementSocket(
   onCreated: AnnouncementCreatedHandler,
 ) {
-  const handlerRef = useRef(onCreated);
-  handlerRef.current = onCreated;
+  const handlerRef = useRef<AnnouncementCreatedHandler>(onCreated);
+
+  useEffect(() => {
+    handlerRef.current = onCreated;
+  });
 
   useEffect(() => {
     const socket: Socket = io(SOCKET_URL, {

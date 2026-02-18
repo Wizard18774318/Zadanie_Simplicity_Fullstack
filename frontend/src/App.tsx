@@ -15,8 +15,6 @@ const queryClient = new QueryClient({
   },
 });
 
-export { queryClient };
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>

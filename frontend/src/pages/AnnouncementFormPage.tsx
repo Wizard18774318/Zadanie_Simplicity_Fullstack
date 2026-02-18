@@ -1,169 +1,31 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import Select from 'react-select';
-import {
-  useAnnouncement,
-  useCategories,
-  useCreateAnnouncement,
-  useUpdateAnnouncement,
-} from '../hooks/useAnnouncementQueries';
+import { useAnnouncementForm } from '../hooks/useAnnouncementForm';
+import type { CategoryOption } from '../hooks/useAnnouncementForm';
 import Spinner from '../components/Spinner';
 import ErrorBanner from '../components/ErrorBanner';
 
-interface CategoryOption {
-  value: number;
-  label: string;
-}
-
-/**
- * Convert an ISO date string to MM/DD/YYYY HH:mm for the input field.
- */
-function isoToFormDate(iso: string): string {
-  const d = new Date(iso);
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  const yyyy = d.getUTCFullYear();
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const min = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${mm}/${dd}/${yyyy} ${hh}:${min}`;
-}
-
-const DATE_REGEX = /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
-
-/**
- * Validate that a MM/DD/YYYY HH:mm string represents a real date/time.
- * Returns an error message or null if valid.
- */
-function validateDateTime(value: string): string | null {
-  if (!DATE_REGEX.test(value)) {
-    return 'Invalid date format — use MM/DD/YYYY HH:mm (e.g. 01/15/2025 09:30).';
-  }
-
-  const [datePart, timePart] = value.split(' ');
-  const [mm, dd, yyyy] = datePart.split('/').map(Number);
-  const [hh, min] = timePart.split(':').map(Number);
-
-  if (mm < 1 || mm > 12) return 'Month must be between 01 and 12.';
-  if (dd < 1 || dd > 31) return 'Day must be between 01 and 31.';
-  if (yyyy < 1900 || yyyy > 2100) return 'Year must be between 1900 and 2100.';
-  if (hh < 0 || hh > 23) return 'Hours must be between 00 and 23.';
-  if (min < 0 || min > 59) return 'Minutes must be between 00 and 59.';
-
-  // Check the date actually exists (e.g. no Feb 30)
-  const constructed = new Date(Date.UTC(yyyy, mm - 1, dd, hh, min));
-  if (
-    constructed.getUTCFullYear() !== yyyy ||
-    constructed.getUTCMonth() !== mm - 1 ||
-    constructed.getUTCDate() !== dd
-  ) {
-    return 'This date does not exist (e.g. February 30).';
-  }
-
-  return null;
-}
-
 export default function AnnouncementFormPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const isEditing = Boolean(id);
-  const numericId = id ? Number(id) : undefined;
-
   const {
-    data: existingAnnouncement,
+    isEditing,
     isLoading,
-    error: loadError,
-  } = useAnnouncement(numericId);
-
-  const { data: categoriesData = [] } = useCategories();
-  const categoryOptions: CategoryOption[] = categoriesData.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
-
-  const createMutation = useCreateAnnouncement();
-  const updateMutation = useUpdateAnnouncement();
-
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [publicationDate, setPublicationDate] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<CategoryOption[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [validationAlert, setValidationAlert] = useState<string[]>([]);
-  const [formInitialized, setFormInitialized] = useState(false);
-
-  useEffect(() => {
-    if (existingAnnouncement && !formInitialized) {
-      setTitle(existingAnnouncement.title);
-      setContent(existingAnnouncement.content);
-      setPublicationDate(isoToFormDate(existingAnnouncement.publicationDate));
-      setSelectedCategories(
-        existingAnnouncement.categories.map((c) => ({ value: c.id, label: c.name })),
-      );
-      setFormInitialized(true);
-    }
-  }, [existingAnnouncement, formInitialized]);
-
-  function validate(): boolean {
-    const errors: Record<string, string> = {};
-
-    if (!title.trim()) {
-      errors.title = 'Please enter a title for the announcement.';
-    } else if (title.trim().length > 255) {
-      errors.title = 'Title must be at most 255 characters.';
-    }
-
-    if (!content.trim()) {
-      errors.content = 'Please enter the announcement content.';
-    }
-
-    if (!publicationDate.trim()) {
-      errors.publicationDate = 'Please specify a publication date.';
-    } else {
-      const dateError = validateDateTime(publicationDate);
-      if (dateError) errors.publicationDate = dateError;
-    }
-
-    if (selectedCategories.length === 0) {
-      errors.categories = 'Please select at least one category.';
-    }
-
-    setFieldErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      setValidationAlert(Object.values(errors));
-      return false;
-    }
-
-    setValidationAlert([]);
-    return true;
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!validate()) return;
-
-    const payload = {
-      title: title.trim(),
-      content: content.trim(),
-      publicationDate,
-      categoryIds: selectedCategories.map((c) => c.value),
-    };
-
-    if (isEditing && numericId) {
-      updateMutation.mutate(
-        { id: numericId, data: payload },
-        { onSuccess: () => navigate('/announcements') },
-      );
-    } else {
-      createMutation.mutate(payload, {
-        onSuccess: () => navigate('/announcements'),
-      });
-    }
-  }
-
-  const submitting = createMutation.isPending || updateMutation.isPending;
-  const mutationError = createMutation.error ?? updateMutation.error;
-  const errorMessage = mutationError instanceof Error ? mutationError.message : null;
+    loadErrorMessage,
+    title,
+    setTitle,
+    content,
+    setContent,
+    publicationDate,
+    setPublicationDate,
+    selectedCategories,
+    setSelectedCategories,
+    categoryOptions,
+    fieldErrors,
+    validationAlert,
+    dismissValidationAlert,
+    handleSubmit,
+    submitting,
+    errorMessage,
+    goBack,
+  } = useAnnouncementForm();
 
   if (isEditing && isLoading) {
     return (
@@ -173,15 +35,12 @@ export default function AnnouncementFormPage() {
     );
   }
 
-  if (isEditing && loadError) {
-    const loadErrorMsg =
-      loadError instanceof Error ? loadError.message : 'Failed to load announcement';
-
+  if (isEditing && loadErrorMessage) {
     return (
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 flex items-center gap-4">
           <button
-            onClick={() => navigate('/announcements')}
+            onClick={goBack}
             className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
             aria-label="Back to announcements"
           >
@@ -192,14 +51,14 @@ export default function AnnouncementFormPage() {
           <h2 className="text-2xl font-bold text-gray-900">Announcement Not Found</h2>
         </div>
 
-        <ErrorBanner message={loadErrorMsg} />
+        <ErrorBanner message={loadErrorMessage} />
 
         <div className="mt-8 text-center">
           <p className="mb-4 text-sm text-gray-500">
             This announcement may have been deleted or the ID is invalid.
           </p>
           <button
-            onClick={() => navigate('/announcements')}
+            onClick={goBack}
             className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-600 transition-colors"
           >
             Back to Announcements
@@ -214,7 +73,7 @@ export default function AnnouncementFormPage() {
       {/* Header */}
       <div className="mb-8 flex items-center gap-4">
         <button
-          onClick={() => navigate('/announcements')}
+          onClick={goBack}
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 transition-colors"
           aria-label="Back to announcements"
         >
@@ -267,7 +126,7 @@ export default function AnnouncementFormPage() {
             </div>
             <button
               type="button"
-              onClick={() => setValidationAlert([])}
+              onClick={dismissValidationAlert}
               className="rounded p-1 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
               aria-label="Dismiss"
             >
@@ -431,7 +290,7 @@ export default function AnnouncementFormPage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/announcements')}
+            onClick={goBack}
             className="rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
             Cancel

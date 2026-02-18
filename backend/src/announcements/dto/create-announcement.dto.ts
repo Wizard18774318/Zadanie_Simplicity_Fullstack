@@ -8,7 +8,6 @@ import {
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
-  ValidationArguments,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -30,7 +29,9 @@ export class IsValidDateTimeConstraint implements ValidatorConstraintInterface {
     if (minutes < 0 || minutes > 59) return false;
 
     // Verify the date actually exists (e.g. no Feb 30)
-    const constructed = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+    const constructed = new Date(
+      Date.UTC(year, month - 1, day, hours, minutes),
+    );
     return (
       constructed.getUTCFullYear() === year &&
       constructed.getUTCMonth() === month - 1 &&
@@ -38,7 +39,7 @@ export class IsValidDateTimeConstraint implements ValidatorConstraintInterface {
     );
   }
 
-  defaultMessage(_args: ValidationArguments): string {
+  defaultMessage(): string {
     return 'Publication date must be a valid date/time in format MM/DD/YYYY HH:mm (e.g. 01/15/2025 09:30)';
   }
 }
