@@ -10,6 +10,7 @@ import {
   ValidatorConstraintInterface,
   ValidationArguments,
 } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 const DATE_REGEX = /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/;
 
@@ -43,20 +44,24 @@ export class IsValidDateTimeConstraint implements ValidatorConstraintInterface {
 }
 
 export class CreateAnnouncementDto {
+  @ApiProperty({ example: 'Road Closure Notice', description: 'Announcement title' })
   @IsString()
   @IsNotEmpty({ message: 'Title is required' })
   @MaxLength(255, { message: 'Title must be at most 255 characters' })
   title: string;
 
+  @ApiProperty({ example: 'Main street will be closed for repairs from Monday.', description: 'Announcement content' })
   @IsString()
   @IsNotEmpty({ message: 'Content is required' })
   content: string;
 
+  @ApiProperty({ example: '06/15/2025 10:00', description: 'Publication date in MM/DD/YYYY HH:mm format' })
   @IsString()
   @IsNotEmpty({ message: 'Publication date is required' })
   @Validate(IsValidDateTimeConstraint)
   publicationDate: string;
 
+  @ApiProperty({ example: [1, 3], description: 'Array of category IDs', type: [Number] })
   @IsArray({ message: 'Category IDs must be an array' })
   @ArrayMinSize(1, { message: 'At least one category is required' })
   @IsInt({ each: true, message: 'Each category ID must be an integer' })

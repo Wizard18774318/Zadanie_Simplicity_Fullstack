@@ -67,6 +67,7 @@ cd frontend && npm install && npm run dev
 | Prisma 7 | ORM / database toolkit |
 | PostgreSQL (Neon) | Cloud databáza |
 | Socket.IO 4 | WebSocket server |
+| Swagger (OpenAPI) | Interaktívna API dokumentácia |
 | class-validator | Validácia DTO |
 
 ## Popis API endpointov
@@ -75,12 +76,15 @@ Všetky endpointy sú dostupné na `http://localhost:3000`.
 
 | Method | Endpoint | Description |
 |--------|------------------------------|--------------------------------------|
+| GET | `/health` | Health check (status, uptime) |
 | GET | `/announcements` | List all announcements (with search & category filter) |
 | GET | `/announcements/:id` | Get a single announcement |
 | POST | `/announcements` | Create a new announcement |
 | PATCH | `/announcements/:id` | Update an announcement |
 | DELETE | `/announcements/:id` | Delete an announcement |
 | GET | `/categories` | List all categories |
+
+> **Swagger UI** — interaktívna dokumentácia je dostupná na **http://localhost:3000/api**
 
 ---
 
